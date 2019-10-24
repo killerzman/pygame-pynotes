@@ -1,4 +1,5 @@
 import pygame
+import pygame.locals
 
 class Interface:
 
@@ -7,6 +8,7 @@ class Interface:
 	def __init__(self, windowObject, interfaceName):
 		self.windowObject = windowObject
 		self.interfaceName = interfaceName
+		self.args = None
 
 	def set_curr_interface(self):
 		Interface.current_interface = self.interfaceName
@@ -55,10 +57,20 @@ class Interface:
 
 	def note_interface_init(self):
 		self.images = {"back":Image("backbutton.png",1/5,1/5)}
+		self.noteString = ""
 
 	def note_interface(self):
-		self.noteText = Text("Note number " + str(self.args[0]+1), textColorForeground = (255,255,255))
+		'''self.noteText = Text("Note number " + str(self.args[0]+1), textColorForeground = (255,255,255))
 		self.noteText.rect.center = (self.windowObject.width // 2, self.windowObject.height // 2)
+		self.windowObject.draw_text(self.noteText)'''
+
+		if self.args:
+			if self.args[0].key == pygame.locals.K_BACKSPACE:
+				self.noteString = self.noteString[:-1]
+			else:
+				self.noteString += str(self.args[0].unicode)
+			self.args = None
+		self.noteText = Text(self.noteString, textColorForeground = (255,255,255))
 		self.windowObject.draw_text(self.noteText)
 
 		self.images["back"].set_rect(0, self.windowObject.height - self.images["back"].image.get_height())
@@ -184,7 +196,7 @@ def main():
 						for note_index in range(len(mainInterface.noteImages)):
 							if mainInterface.noteImages[note_index].collide_point(event.pos):
 								window.fill()
-								noteInterface.init_draw(note_index)
+								noteInterface.init_draw()
 								update_all()
 								print("note " + str(note_index+1))
 				elif Interface.current_interface == "note_interface":
@@ -194,7 +206,11 @@ def main():
 							mainInterface.draw()
 							update_all()
 							print("back")
-
+					elif event.type == pygame.KEYDOWN:
+						window.fill()
+						noteInterface.draw(event)
+						update_all()
+						print(event.unicode)
 	else:
 		print("pygame init failed!")
 
