@@ -11,34 +11,41 @@ class Interface:
 	def set_curr_interface(self):
 		Interface.current_interface = self.interfaceName
 
-	def init_draw(self):
+	def init_draw(self, *args):
+		if args:
+			self.args = args
 		getattr(Interface, self.interfaceName + "_init")(self)
 		self.draw()
-		self.set_curr_interface()
 
-	def draw(self):
+	def draw(self, *args):
+		if args:
+			self.args = args
 		getattr(Interface, self.interfaceName)(self)
 		self.set_curr_interface()
 
 	def main_interface_init(self):
 		self.images = {"note":Image("postitnote.png",1/6,1/6), "add":Image("plusbutton.png",1/2,1/2), "remove":Image("minusbutton.png",1/5,1/5)}
 
-		self.note_rows = 5
-		self.note_columns = 7
-		self.note_current = 20
+		self.noteRows = 6
+		self.noteColumns = 6
+		self.noteCurrent = 1
 
 	def main_interface(self):
-		self.note_images = []
+		self.noteTexts = []
+		self.noteImages = []
 
-		for i in range(self.note_current):
-			self.note_images.append(Image("postitnote.png",1/6,1/6))
+		for i in range(self.noteCurrent):
+			self.noteImages.append(Image("postitnote.png",1/6,1/6))
 
-		for i in range(self.note_rows):
-			for j in range(self.note_columns):
-				note_index = i * self.note_columns + j
-				if self.note_current > note_index:
-					self.note_images[note_index].set_rect(j * self.note_images[note_index].image.get_width(), i * self.note_images[note_index].image.get_height())
-					self.windowObject.draw_image(self.note_images[note_index])
+		for i in range(self.noteRows):
+			for j in range(self.noteColumns):
+				note_index = i * self.noteColumns + j
+				if self.noteCurrent > note_index:
+					self.noteImages[note_index].set_rect(j * self.noteImages[note_index].image.get_width(), i * self.noteImages[note_index].image.get_height())
+					self.windowObject.draw_image(self.noteImages[note_index])
+					self.noteTexts.append(Text(str(note_index + 1), textColorForeground = (255,255,255)))
+					self.noteTexts[len(self.noteTexts) - 1].rect.center = (self.noteImages[note_index].rect.width * (j+1), self.noteImages[note_index].rect.height * (i+1))
+					self.windowObject.draw_text(self.noteTexts[len(self.noteTexts) - 1])
 
 		self.images["add"].set_rect(0, self.windowObject.height - self.images["add"].image.get_height())
 		self.windowObject.draw_image(self.images["add"])
@@ -47,15 +54,33 @@ class Interface:
 		self.windowObject.draw_image(self.images["remove"])
 
 	def note_interface_init(self):
-		font = pygame.font.Font('freesansbold.ttf', 32)
-		text = font.render('dinamo', True, (255,255,255), (0,0,0))
-		textRect = text.get_rect()
-		textRect.center = (self.windowObject.width // 2, self.windowObject.height // 2)
-		self.windowObject.display.blit(text, textRect)
+		self.images = {"back":Image("backbutton.png",1/5,1/5)}
 
 	def note_interface(self):
-		pass
+		self.noteText = Text("Note number " + str(self.args[0]+1), textColorForeground = (255,255,255))
+		self.noteText.rect.center = (self.windowObject.width // 2, self.windowObject.height // 2)
+		self.windowObject.draw_text(self.noteText)
 
+		self.images["back"].set_rect(0, self.windowObject.height - self.images["back"].image.get_height())
+		self.windowObject.draw_image(self.images["back"])
+
+class Text:
+	def __init__(self, textString = "default", textFontSize = 20, textFontType = 'freesansbold.ttf', textColorForeground = (0,0,0), textColorBackground = (-1,-1,-1), textAntialiasing = True):
+		self.string = textString
+		self.fontType = textFontType
+		self.fontSize = textFontSize
+		self.colorForeground = textColorForeground
+		self.colorBackground = textColorBackground
+		self.antialiasing = textAntialiasing
+		self.setup()
+
+	def setup(self):
+		self.fontObject = pygame.font.Font(self.fontType, self.fontSize)
+		if self.colorBackground != (-1,-1,-1) and all(isinstance(color, int) and color >= 0 and color <= 255 for color in self.colorBackground):
+			self.textObject = self.fontObject.render(self.string, self.antialiasing, self.colorForeground, self.colorBackground)
+		else:
+			self.textObject = self.fontObject.render(self.string, self.antialiasing, self.colorForeground)
+		self.rect = self.textObject.get_rect()
 
 class Image:
 	def __init__(self, imagePath, imageScaleWidth = 1, imageScaleHeight = 1):
@@ -113,6 +138,9 @@ class Window:
 	def draw_image(self, image):
 		self.display.blit(image.image, (image.rect.left, image.rect.top))
 
+	def draw_text(self, text):
+		self.display.blit(text.textObject, text.rect)
+
 def init():
 	try:
 		pygame.init()
@@ -143,21 +171,29 @@ def main():
 					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 						if mainInterface.images["add"].collide_point(event.pos):
 							window.fill()
-							mainInterface.note_current += 1
+							mainInterface.noteCurrent += 1
 							mainInterface.draw()
 							update_all()
 							print("add")
 						if mainInterface.images["remove"].collide_point(event.pos):
 							window.fill()
-							mainInterface.note_current -= 1
+							mainInterface.noteCurrent -= 1
 							mainInterface.draw()
 							update_all()
 							print("remove")
-						for note_index in range(len(mainInterface.note_images)):
-							if mainInterface.note_images[note_index].collide_point(event.pos):
+						for note_index in range(len(mainInterface.noteImages)):
+							if mainInterface.noteImages[note_index].collide_point(event.pos):
 								window.fill()
-								noteInterface.init_draw()
+								noteInterface.init_draw(note_index)
 								update_all()
+								print("note " + str(note_index+1))
+				elif Interface.current_interface == "note_interface":
+					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+						if noteInterface.images["back"].collide_point(event.pos):
+							window.fill()
+							mainInterface.draw()
+							update_all()
+							print("back")
 
 	else:
 		print("pygame init failed!")
