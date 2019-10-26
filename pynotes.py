@@ -1,5 +1,42 @@
 import pygame
 import pygame.locals
+import json
+import datetime
+import os.path
+
+class NoteObject:
+
+	attributes = ['number', 'text', 'timestamp']
+
+	def __init__(self, noteNumber = "0", noteText = "", noteTimestamp = ""):
+		self.number = noteNumber
+		self.text = noteText
+		self.timestamp = noteTimestamp
+		self.data = {}
+
+	def to_json(self):
+		for attribute in NoteObject.attributes:
+			self.data[attribute] = getattr(self, attribute)
+		self.json = json.dumps(self.data)
+
+	def from_json(self):
+		self.data = json.loads(self.json)
+
+	def save_to_file(self, number = None):
+		if number:
+			with open(str(number) + '.dat', 'w') as outfile:
+				json.dump(self.json, outfile)
+		else:
+			with open(str(self.number) + '.dat', 'w') as outfile:
+				json.dump(self.json, outfile)
+
+	def load_from_file(self, number = None):
+		if number:
+			with open(str(number) + '.dat') as json_file:
+				self.json = json.load(json_file)
+		else:
+			with open(str(self.number) + '.dat') as json_file:
+				self.json = json.load(json_file)
 
 class Interface:
 
@@ -56,14 +93,19 @@ class Interface:
 		self.windowObject.draw_image(self.images["remove"])
 
 	def note_interface_init(self):
-		self.images = {"back":Image("backbutton.png",1/5,1/5)}
+		self.images = {"back":Image("backbutton.png",1/6,1/6), "save":Image("savebutton.png",1/4,1/4)}
 		self.noteString = ""
+		if self.args:
+			self.noteIndex = self.args[0]
+			if os.path.isfile(str(self.noteIndex) + '.dat'):
+				noteobj = NoteObject()
+				noteobj.load_from_file(self.noteIndex)
+				noteobj.from_json()
+				self.noteString = noteobj.data['text']
+			self.args = None
+
 
 	def note_interface(self):
-		'''self.noteText = Text("Note number " + str(self.args[0]+1), textColorForeground = (255,255,255))
-		self.noteText.rect.center = (self.windowObject.width // 2, self.windowObject.height // 2)
-		self.windowObject.draw_text(self.noteText)'''
-
 		if self.args:
 			if self.args[0].key == pygame.locals.K_BACKSPACE:
 				self.noteString = self.noteString[:-1]
@@ -75,6 +117,9 @@ class Interface:
 
 		self.images["back"].set_rect(0, self.windowObject.height - self.images["back"].image.get_height())
 		self.windowObject.draw_image(self.images["back"])
+
+		self.images["save"].set_rect(self.images["back"].image.get_width(), self.windowObject.height - self.images["save"].image.get_height())
+		self.windowObject.draw_image(self.images["save"])
 
 class Text:
 	def __init__(self, textString = "default", textFontSize = 20, textFontType = 'freesansbold.ttf', textColorForeground = (0,0,0), textColorBackground = (-1,-1,-1), textAntialiasing = True):
@@ -102,12 +147,9 @@ class Image:
 		self.setup()
 
 	def setup(self):
-		self.image = pygame.image.load(self.path)
+		self.image = pygame.image.load(self.path).convert_alpha()
 		self.image = pygame.transform.scale(self.image, (int(self.image.get_width()*self.scaleW), int(self.image.get_height()*self.scaleH)))
 		self.set_rect(0, 0)
-
-	def reset(self, imagePath, imageScaleWidth = 1, imageScaleHeight = 1):
-		self.__init__(imagePath, imageScaleWidth, imageScaleHeight)
 
 	def set_rect(self, imageX = 0, imageY = 0):
 		self.rect = pygame.Rect(imageX, imageY, self.image.get_width(), self.image.get_height())
@@ -136,9 +178,6 @@ class Window:
 		else:
 			self.display = pygame.display.set_mode((self.width, self.height))
 		self.fill(self.backgroundColor)
-
-	def reset(self, windowWidth = 1280, windowHeight = 720, windowName = "pynotes", windowResizable = True, windowBackgroundColor = (0,0,0)):
-		self.__init__(windowWidth, windowHeight, windowName, windowResizable, windowBackgroundColor)
 
 	def fill(self, windowBackgroundColor = (0,0,0)):
 		self.backgroundColor = windowBackgroundColor
@@ -196,7 +235,7 @@ def main():
 						for note_index in range(len(mainInterface.noteImages)):
 							if mainInterface.noteImages[note_index].collide_point(event.pos):
 								window.fill()
-								noteInterface.init_draw()
+								noteInterface.init_draw(note_index+1)
 								update_all()
 								print("note " + str(note_index+1))
 				elif Interface.current_interface == "note_interface":
@@ -206,6 +245,11 @@ def main():
 							mainInterface.draw()
 							update_all()
 							print("back")
+						if noteInterface.images["save"].collide_point(event.pos):
+							noteobj = NoteObject(noteInterface.noteIndex, noteInterface.noteString, str(datetime.datetime.now()))
+							noteobj.to_json()
+							noteobj.save_to_file()
+							print("save")
 					elif event.type == pygame.KEYDOWN:
 						window.fill()
 						noteInterface.draw(event)
