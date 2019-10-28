@@ -1,8 +1,9 @@
-import pygame
-import pygame.locals
 import json
 import datetime
 import os.path
+
+import pygame
+import pygame.locals
 
 class NoteObject:
 
@@ -83,8 +84,9 @@ class Interface:
 					self.noteImages[note_index].set_rect(j * self.noteImages[note_index].image.get_width(), i * self.noteImages[note_index].image.get_height())
 					self.windowObject.draw_image(self.noteImages[note_index])
 					self.noteTexts.append(Text(str(note_index + 1), textColorForeground = (255,255,255)))
-					self.noteTexts[len(self.noteTexts) - 1].rect.center = (self.noteImages[note_index].rect.width * (j+1), self.noteImages[note_index].rect.height * (i+1))
-					self.windowObject.draw_text(self.noteTexts[len(self.noteTexts) - 1])
+					self.windowObject.draw_text(self.noteTexts[len(self.noteTexts) - 1],
+						(self.noteImages[note_index].rect.width * (j+1) - self.noteTexts[len(self.noteTexts) - 1].fontSize / 2,
+							self.noteImages[note_index].rect.height * (i+1) - self.noteTexts[len(self.noteTexts) - 1].fontSize / 2 ))
 
 		self.images["add"].set_rect(0, self.windowObject.height - self.images["add"].image.get_height())
 		self.windowObject.draw_image(self.images["add"])
@@ -109,6 +111,8 @@ class Interface:
 		if self.args:
 			if self.args[0].key == pygame.locals.K_BACKSPACE:
 				self.noteString = self.noteString[:-1]
+			elif self.args[0].key == pygame.locals.K_RETURN:
+				self.noteString = self.noteString + "\n"
 			else:
 				self.noteString += str(self.args[0].unicode)
 			self.args = None
@@ -133,11 +137,6 @@ class Text:
 
 	def setup(self):
 		self.fontObject = pygame.font.Font(self.fontType, self.fontSize)
-		if self.colorBackground != (-1,-1,-1) and all(isinstance(color, int) and color >= 0 and color <= 255 for color in self.colorBackground):
-			self.textObject = self.fontObject.render(self.string, self.antialiasing, self.colorForeground, self.colorBackground)
-		else:
-			self.textObject = self.fontObject.render(self.string, self.antialiasing, self.colorForeground)
-		self.rect = self.textObject.get_rect()
 
 class Image:
 	def __init__(self, imagePath, imageScaleWidth = 1, imageScaleHeight = 1):
@@ -189,8 +188,26 @@ class Window:
 	def draw_image(self, image):
 		self.display.blit(image.image, (image.rect.left, image.rect.top))
 
-	def draw_text(self, text):
-		self.display.blit(text.textObject, text.rect)
+	'''https://stackoverflow.com/a/42015712'''
+	def draw_text(self, text, pos = (0,0)):
+		words = [word.split(' ') for word in text.string.splitlines()]
+		space = text.fontObject.size(' ')[0]
+		max_w, max_h = self.display.get_size()
+		x, y = pos
+		for line in words:
+			for word in line:
+				if text.colorBackground != (-1,-1,-1) and all(isinstance(color, int) and color >= 0 and color <= 255 for color in text.colorBackground):
+					word_surface = text.fontObject.render(word, text.antialiasing, text.colorForeground, text.colorBackground)
+				else:
+					word_surface = text.fontObject.render(word, text.antialiasing, text.colorForeground)
+				word_w, word_h = word_surface.get_size()
+				if x + word_h >= max_h:
+					x = pos[0]
+					y += word_h
+				self.display.blit(word_surface, (x,y))
+				x += word_w + space
+			x = pos[0]
+			y += word_h
 
 def init():
 	try:
