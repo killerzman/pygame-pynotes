@@ -1,6 +1,7 @@
 import json
 import datetime
-import os.path
+import os
+import re
 
 import pygame
 import pygame.locals
@@ -23,17 +24,17 @@ class NoteObject:
 	def from_json(self):
 		self.data = json.loads(self.json)
 
-	def save_to_file(self, number = None):
-		if number:
-			with open(str(number) + '.dat', 'w') as outfile:
+	def save_to_file(self, path = None):
+		if path:
+			with open(str(path) + str(self.number) + '.dat', 'w') as outfile:
 				json.dump(self.json, outfile)
 		else:
 			with open(str(self.number) + '.dat', 'w') as outfile:
 				json.dump(self.json, outfile)
 
-	def load_from_file(self, number = None):
-		if number:
-			with open(str(number) + '.dat') as json_file:
+	def load_from_file(self, path = None):
+		if path:
+			with open(str(path) + '.dat') as json_file:
 				self.json = json.load(json_file)
 		else:
 			with open(str(self.number) + '.dat') as json_file:
@@ -64,18 +65,18 @@ class Interface:
 		self.set_curr_interface()
 
 	def main_interface_init(self):
-		self.images = {"note":Image("postitnote.png",1/6,1/6), "add":Image("plusbutton.png",1/2,1/2), "remove":Image("minusbutton.png",1/5,1/5)}
+		self.images = {"note":Image("_img/postitnote.png",1/6,1/6), "add":Image("_img/plusbutton.png",1/2,1/2), "remove":Image("_img/minusbutton.png",1/5,1/5)}
 
 		self.noteRows = 6
 		self.noteColumns = 6
-		self.noteCurrent = 1
+		self.noteCurrent = notes_check()
 
 	def main_interface(self):
 		self.noteTexts = []
 		self.noteImages = []
 
 		for i in range(self.noteCurrent):
-			self.noteImages.append(Image("postitnote.png",1/6,1/6))
+			self.noteImages.append(Image("_img/postitnote.png",1/6,1/6))
 
 		for i in range(self.noteRows):
 			for j in range(self.noteColumns):
@@ -95,13 +96,13 @@ class Interface:
 		self.windowObject.draw_image(self.images["remove"])
 
 	def note_interface_init(self):
-		self.images = {"back":Image("backbutton.png",1/6,1/6), "save":Image("savebutton.png",1/4,1/4)}
+		self.images = {"back":Image("_img/backbutton.png",1/6,1/6), "save":Image("_img/savebutton.png",1/4,1/4)}
 		self.noteString = ""
 		if self.args:
 			self.noteIndex = self.args[0]
-			if os.path.isfile(str(self.noteIndex) + '.dat'):
+			if os.path.isfile("_notes/" + str(self.noteIndex) + '.dat'):
 				noteobj = NoteObject()
-				noteobj.load_from_file(self.noteIndex)
+				noteobj.load_from_file("_notes/" + str(self.noteIndex))
 				noteobj.from_json()
 				self.noteString = noteobj.data['text']
 			self.args = None
@@ -219,10 +220,32 @@ def init():
 def update_all():
 	pygame.display.flip()
 
+def notes_check():
+	path = "_notes/"
+	filesList = os.listdir(path)
+	jsonList = []
+	goodNotes = 0
+	for f in filesList:
+		if re.search("^\d+.dat", f):
+			with open(path + f) as json_file:
+				try:
+					jsonF = json.load(json_file)
+					jsonList.append(jsonF)
+				except ValueError:
+					pass
+	for j in jsonList:
+		try:
+			jUnpak = json.loads(j)
+			if len(jUnpak) == len(NoteObject.attributes) and all(jUnpak[attr] for attr in NoteObject.attributes) and all(attr for attr in NoteObject.attributes):
+				goodNotes += 1
+		except:
+			pass
+	return goodNotes
+
 def main():
 	running = init()
 	if running:
-		window = Window()
+		window = Window(windowResizable = False)
 
 		mainInterface = Interface(window, "main_interface")
 		mainInterface.init_draw()
@@ -265,7 +288,7 @@ def main():
 						if noteInterface.images["save"].collide_point(event.pos):
 							noteobj = NoteObject(noteInterface.noteIndex, noteInterface.noteString, str(datetime.datetime.now()))
 							noteobj.to_json()
-							noteobj.save_to_file()
+							noteobj.save_to_file("_notes/")
 							print("save")
 					elif event.type == pygame.KEYDOWN:
 						window.fill()
