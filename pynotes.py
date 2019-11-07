@@ -24,21 +24,20 @@ class NoteObject:
 	def from_json(self):
 		self.data = json.loads(self.json)
 
-	def save_to_file(self, path = None):
-		if path:
-			with open(str(path) + str(self.number) + '.dat', 'w') as outfile:
-				json.dump(self.json, outfile)
-		else:
-			with open(str(self.number) + '.dat', 'w') as outfile:
-				json.dump(self.json, outfile)
+	def save_to_file(self, path):
+		with open(str(path) + str(self.number) + '.dat', 'w') as outfile:
+			json.dump(self.json, outfile)
 
-	def load_from_file(self, path = None):
-		if path:
-			with open(str(path) + '.dat') as json_file:
-				self.json = json.load(json_file)
-		else:
-			with open(str(self.number) + '.dat') as json_file:
-				self.json = json.load(json_file)
+	def load_from_file(self, path):
+		with open(str(path) + '.dat') as json_file:
+			self.json = json.load(json_file)
+
+	def remove_file(self, path):
+		try:
+			os.remove(str(path) + '.dat')
+		except:
+			print("Error while deleting file ", path)
+			print("Check if the file exists or for file permissions")
 
 class Interface:
 
@@ -114,6 +113,8 @@ class Interface:
 				self.noteString = self.noteString[:-1]
 			elif self.args[0].key == pygame.locals.K_RETURN:
 				self.noteString = self.noteString + "\n"
+			elif self.args[0].key == pygame.locals.K_TAB:
+				self.noteString = self.noteString + "    "
 			else:
 				self.noteString += str(self.args[0].unicode)
 			self.args = None
@@ -236,7 +237,7 @@ def notes_check():
 	for j in jsonList:
 		try:
 			jUnpak = json.loads(j)
-			if len(jUnpak) == len(NoteObject.attributes) and all(jUnpak[attr] for attr in NoteObject.attributes) and all(attr for attr in NoteObject.attributes):
+			if list(jUnpak.keys()) == NoteObject.attributes:
 				goodNotes += 1
 		except:
 			pass
@@ -262,14 +263,18 @@ def main():
 					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 						if mainInterface.images["add"].collide_point(event.pos):
 							window.fill()
-							mainInterface.noteCurrent += 1
-							mainInterface.draw()
+							noteobj = NoteObject(mainInterface.noteCurrent + 1, "", str(datetime.datetime.now()))
+							noteobj.to_json()
+							noteobj.save_to_file("_notes/")
+							mainInterface.init_draw()
 							update_all()
 							print("add")
 						if mainInterface.images["remove"].collide_point(event.pos):
 							window.fill()
-							mainInterface.noteCurrent -= 1
-							mainInterface.draw()
+							if mainInterface.noteCurrent > 0:
+								noteobj = NoteObject()
+								noteobj.remove_file("_notes/" + str(mainInterface.noteCurrent))
+							mainInterface.init_draw()
 							update_all()
 							print("remove")
 						for note_index in range(len(mainInterface.noteImages)):
@@ -282,7 +287,7 @@ def main():
 					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 						if noteInterface.images["back"].collide_point(event.pos):
 							window.fill()
-							mainInterface.draw()
+							mainInterface.init_draw()
 							update_all()
 							print("back")
 						if noteInterface.images["save"].collide_point(event.pos):
